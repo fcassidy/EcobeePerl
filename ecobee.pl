@@ -61,7 +61,7 @@ print $fh "access_token:$new_access_token\n";
 close($fh);
 
 #make the request for thermostat information
-my $json = "{\"selection\":{\"selectionType\":\"registered\",\"selectionMatch\":\"\",\"includeRuntime\":true,\"includeSensors\":true}}";
+my $json = "{\"selection\":{\"selectionType\":\"registered\",\"selectionMatch\":\"\",\"includeRuntime\":false,\"includeSensors\":true}}";
 my $uri = 'https://api.ecobee.com/1/thermostat?format=json&body='.$json;
 
 my $res = $ua->get($uri,
@@ -73,3 +73,40 @@ print "\n\n---------------------------------\n\n";
 print $res->decoded_content();
 
 #'Authorization: Bearer aytQ0McY9p7FjJVacHXyK0DtoKcNxwDr' 'https://api.ecobee.com/1/thermostat?format=json&body=\{"selection":\{"selectionType":"registered","selectionMatch":"","includeRuntime":true\}\}'
+
+#search through the response for values of interest
+my %temperatures;
+
+my $in_temp = 0;
+my $cur_name;
+
+
+#print "\n\n---------------------------------\n\n";
+my $response_string = $res->decoded_content();
+my $filelike = qq{$response_string};
+open $fh, '<', \$filelike or die $!;
+while (my $line = <$fh>) {
+   #print $line;
+   if($line =~ m/"name": "(.*)"/){
+     my $name = $1;
+     print "$name\n";
+     $cur_name = $name;
+     $in_temp = 0;
+   }
+   #"type": "temperature",
+   #"value": "749"
+   if($line =~ m/"type": "temperature"/){
+     $in_temp = 1;
+   }
+   if($in_temp == 1 && $line =~ m/"value": "(.*)"/){
+     $temperatures{$cur_name} = ($1/10);
+     $in_temp = 0;
+   }
+ }
+
+ print "\n\n---------------------------\n\n";
+ foreach my $key (keys %temperatures)
+ {
+   my $temp = $temperatures{$key};
+   print "$key = $temp\n";
+ }
